@@ -1,0 +1,2 @@
+0 8 * * * cd /path/to/your/project && python crm/cron_jobs/send_order_reminders.py
+0 8 * * * cd C:\Users\cv\OneDrive\Desktop\alx-project\alx-backend-graphql_crm && python crm/cron_jobs/send_order_reminders.py
