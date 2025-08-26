@@ -60,3 +60,5 @@ except ImportError as e:
 except Exception as e:
     print(f'Error during cleanup: {e}')
 "
+crm/cron_jobs/customer_cleanup_crontab.txt doesn't contain: ["alx-backend-graphql_crm/crm/cron_jobs/clean_inactive_customers.sh"]
+["print"]
