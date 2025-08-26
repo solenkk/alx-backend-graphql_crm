@@ -24,3 +24,5 @@ inactive_customers.delete()
 with open('/tmp/customer_cleanup_log.txt', 'a') as f:
     f.write(f"{timezone.now()}: Deleted {count} inactive customers\\n")
 EOF
+["alx-backend-graphql_crm/crm/cron_jobs/clean_inactive_customers.sh"]
+["print"]
