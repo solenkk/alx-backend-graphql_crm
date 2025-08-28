@@ -74,4 +74,5 @@ def generate_crm_report():
             f.write(error_message + '\n')
         
         print(error_message)
-        return error_message
+        return 
+    ["import requests"]
