@@ -3,3 +3,8 @@ graphene-django==3.2.0
 django-filter==23.5
 gql==3.5.0
 aiohttp==3.9.5
+Django==4.2.7
+graphene-django==3.1.5
+django-crontab==0.7.1
+gql[requests]==3.4.1
+requests==2.31.0
