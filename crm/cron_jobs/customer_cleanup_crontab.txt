@@ -1,2 +1,1 @@
 0 2 * * 0 pwsh -File "C:\path\to\your\project\alx-backend-graphql_crm\crm\cron_jobs\clean_inactive_customers.ps1"
-0 8 * * * /usr/bin/python3 /path/to/crm/cron_jobs/send_order_reminders.py
