@@ -4,7 +4,6 @@ Cron jobs for the CRM application
 
 import os
 from datetime import datetime
-from django.utils import timezone
 
 def log_crm_heartbeat():
     """
@@ -26,40 +25,49 @@ def log_crm_heartbeat():
         # Optional: Verify GraphQL endpoint is responsive
         try:
             from gql import gql, Client
-            from gql.transport.aiohttp import AIOHTTPTransport
-            import asyncio
+            from gql.transport.requests import RequestsHTTPTransport
             
-            async def test_graphql():
-                transport = AIOHTTPTransport(url="http://localhost:8000/graphql/")
-                async with Client(transport=transport) as session:
-                    query = gql("""
-                        query {
-                            __schema {
-                                types {
-                                    name
-                                }
-                            }
-                        }
-                    """)
-                    await session.execute(query)
-                    return True
+            # Use synchronous transport instead of async for cron jobs
+            transport = RequestsHTTPTransport(
+                url="http://localhost:8000/graphql/",
+                verify=True,
+                retries=2,
+                timeout=5
+            )
             
-            # Run the test
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(test_graphql())
+            client = Client(transport=transport, fetch_schema_from_transport=True)
             
-            if result:
-                with open('/tmp/crm_heartbeat_log.txt', 'a') as f:
-                    f.write(f"{timestamp} GraphQL endpoint is responsive\n")
-                    
+            # Simple query to test endpoint
+            query = gql("""
+                query {
+                    hello
+                }
+            """)
+            
+            result = client.execute(query)
+            
+            # Log successful response
+            with open('/tmp/crm_heartbeat_log.txt', 'a') as f:
+                f.write(f"{timestamp} GraphQL endpoint responsive: {result.get('hello', 'OK')}\n")
+                
+        except ImportError:
+            # gql library not available, skip GraphQL test
+            with open('/tmp/crm_heartbeat_log.txt', 'a') as f:
+                f.write(f"{timestamp} GraphQL test skipped (gql not installed)\n")
+                
         except Exception as e:
+            # Log GraphQL connection error but don't fail the cron job
             with open('/tmp/crm_heartbeat_log.txt', 'a') as f:
                 f.write(f"{timestamp} GraphQL test failed: {str(e)}\n")
         
         return True
         
     except Exception as e:
-        # If file logging fails, print to console
-        print(f"Heartbeat logging failed: {e}")
+        # If file logging fails, create error log
+        try:
+            with open('/tmp/crm_heartbeat_error_log.txt', 'a') as f:
+                f.write(f"{datetime.now().strftime('%d/%m/%Y-%H:%M:%S')} Heartbeat logging failed: {str(e)}\n")
+        except:
+            # Final fallback - print to console
+            print(f"Heartbeat logging failed: {e}")
         return False
