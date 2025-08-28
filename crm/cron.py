@@ -4,6 +4,8 @@ Cron jobs for the CRM application
 
 import os
 from datetime import datetime
+from gql import gql, Client
+from gql.transport.requests import RequestsHTTPTransport
 
 def log_crm_heartbeat():
     """
@@ -70,4 +72,64 @@ def log_crm_heartbeat():
         except:
             # Final fallback - print to console
             print(f"Heartbeat logging failed: {e}")
+        return False
+
+def update_low_stock():
+    """
+    Cron job that updates low-stock products every 12 hours
+    Executes the UpdateLowStockProducts mutation and logs results
+    """
+    try:
+        timestamp = datetime.now().strftime('%d/%m/%Y-%H:%M:%S')
+        
+        # Set up GraphQL client
+        transport = RequestsHTTPTransport(
+            url="http://localhost:8000/graphql/",
+            verify=True,
+            retries=3,
+            timeout=30
+        )
+        
+        client = Client(transport=transport, fetch_schema_from_transport=True)
+        
+        # Define the mutation - MUST match the exact GraphQL mutation name
+        mutation = gql("""
+            mutation UpdateLowStockProducts {
+                updateLowStockProducts(increment: 10) {
+                    message
+                    updatedCount
+                    products {
+                        name
+                        stock
+                    }
+                }
+            }
+        """)
+        
+        # Execute the mutation
+        result = client.execute(mutation)
+        update_data = result['updateLowStockProducts']
+        
+        # Log the results to the REQUIRED file path
+        log_file = '/tmp/low_stock_updates_log.txt'
+        with open(log_file, 'a') as f:
+            f.write(f"{timestamp} - {update_data['message']}\n")
+            f.write(f"{timestamp} - Updated {update_data['updatedCount']} products\n")
+            
+            if update_data['products']:
+                for product in update_data['products']:
+                    f.write(f"{timestamp} - Product: {product['name']}, New Stock: {product['stock']}\n")
+            else:
+                f.write(f"{timestamp} - No low-stock products found\n")
+        
+        print(f"Low stock update completed: {update_data['message']}")
+        return True
+        
+    except Exception as e:
+        # Error logging
+        error_log = '/tmp/low_stock_updates_error_log.txt'
+        with open(error_log, 'a') as f:
+            f.write(f"{datetime.now().strftime('%d/%m/%Y-%H:%M:%S')} Low stock update failed: {str(e)}\n")
+        
+        print(f"Low stock update failed: {e}")
         return False

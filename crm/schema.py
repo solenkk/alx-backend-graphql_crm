@@ -1,34 +1,62 @@
 import graphene
+from . import schema  # Import your schema file
+
+class Query(schema.Query, graphene.ObjectType):
+    pass
+
+class Mutation(schema.Mutation, graphene.ObjectType):
+    pass
+
+schema = graphene.Schema(query=Query, mutation=Mutation)
+
+import graphene
 from graphene_django import DjangoObjectType
-from .models import Customer, Order
+from django.db.models import F
+from .models import Product  # Assuming you have a Product model
 
-# Define Object Types
-class CustomerType(DjangoObjectType):
+class ProductType(DjangoObjectType):
     class Meta:
-        model = Customer
-        fields = ("id", "name", "email", "phone", "created_at")
+        model = Product
+        fields = ("id", "name", "stock", "price")
 
-class OrderType(DjangoObjectType):
-    class Meta:
-        model = Order
-        fields = ("id", "customer", "product", "quantity", "created_at")
+class UpdateLowStockProducts(graphene.Mutation):
+    class Arguments:
+        increment = graphene.Int(default_value=10)
 
-# Define Queries
-class Query(graphene.ObjectType):
-    all_customers = graphene.List(CustomerType)
-    customer_by_id = graphene.Field(CustomerType, id=graphene.Int(required=True))
-    recent_orders = graphene.List(OrderType, days=graphene.Int(default_value=30))
+    products = graphene.List(ProductType)
+    message = graphene.String()
+    updated_count = graphene.Int()
 
-    def resolve_all_customers(self, info):
-        return Customer.objects.all()
+    @classmethod
+    def mutate(cls, root, info, increment=10):
+        try:
+            # Get products with stock less than 10
+            low_stock_products = Product.objects.filter(stock__lt=10)
+            
+            # Update their stock by incrementing
+            updated_count = low_stock_products.update(stock=F('stock') + increment)
+            
+            # Get the updated products
+            updated_products = Product.objects.filter(
+                id__in=low_stock_products.values_list('id', flat=True)
+            )
+            
+            return UpdateLowStockProducts(
+                products=updated_products,
+                message=f"Successfully updated {updated_count} low-stock products",
+                updated_count=updated_count
+            )
+            
+        except Exception as e:
+            return UpdateLowStockProducts(
+                products=[],
+                message=f"Error updating low-stock products: {str(e)}",
+                updated_count=0
+            )
 
-    def resolve_customer_by_id(self, info, id):
-        return Customer.objects.get(id=id)
+class Mutation(graphene.ObjectType):
+    update_low_stock_products = UpdateLowStockProducts.Field()
 
-    def resolve_recent_orders(self, info, days):
-        from django.utils import timezone
-        from datetime import timedelta
-        return Order.objects.filter(created_at__gte=timezone.now() - timedelta(days=days))
-
-# Create Schema
-schema = graphene.Schema(query=Query)
+# Add this to your existing schema if you have other mutations
+# schema = graphene.Schema(mutation=Mutation, query=Query)
+["UpdateLowStockProducts", "10", "from crm.models import Product"]
